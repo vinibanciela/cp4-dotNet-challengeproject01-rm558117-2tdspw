@@ -6,7 +6,7 @@ using MotoSyncAuth.Models;
 using MotoSyncAuth.DTOs;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,13 +19,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     // Adiciona esquema de segurança JWT
-    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "Insira o token JWT no formato: Bearer {token}",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Scheme = JwtBearerDefaults.AuthenticationScheme
     });
 
     options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -36,7 +36,7 @@ builder.Services.AddSwaggerGen(options =>
                 Reference = new Microsoft.OpenApi.Models.OpenApiReference
                 {
                     Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                    Id = JwtBearerDefaults.AuthenticationScheme
                 }
             },
             new string[] {}
@@ -73,8 +73,8 @@ builder.Services.AddSingleton<JwtService>();    // Gera e valida tokens
 builder.Services.AddSingleton<UserService>();   // Simula usuários em memória
 
 // Configura Autenticação JWT (com chave secreta)
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         options.RequireHttpsMetadata = false;
         options.SaveToken = true;
@@ -93,7 +93,6 @@ builder.Services.AddAuthentication("Bearer")
 // Configura Autorização (para controle de acesso)
 builder.Services.AddAuthorization();
 
-
 var app = builder.Build();
 
 // -----------------------------------------------------------
@@ -106,8 +105,6 @@ app.UseCors("AllowAll");
 app.UseRateLimiter(); // protege as rotas com limites de requisições
 app.UseAuthentication();
 app.UseAuthorization();
-
-
 
 // -----------------------------------------------------------
 // ROTAS DE AUTENTICAÇÃO
@@ -135,7 +132,6 @@ authGroup.MapPost("/login", (LoginRequest request, UserService userService, JwtS
 .Produces(401)
 .RequireRateLimiting("default");
 
-
 // GET /auth/me → Retorna dados do usuário autenticado via token
 authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 {
@@ -149,7 +145,6 @@ authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 .WithDescription("Retorna os dados do usuário a partir do token JWT.")
 .Produces<User>(200)
 .Produces(401);
-
 
 // POST /auth/forgot-password → Gera token de redefinição de senha
 authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request, UserService userService) =>
@@ -173,13 +168,11 @@ authGroup.MapPost("/reset-password", (ResetPasswordRequest request, UserService 
 .Produces<string>(200)
 .Produces(400);
 
-
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE USUÁRIOS
 // -----------------------------------------------------------
 
 var userGroup = app.MapGroup("/users").WithTags("Usuários");
-
 
 // GET /users → Lista todos os usuários
 userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt) =>
@@ -216,7 +209,6 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
 .Produces<IEnumerable<UserResponse>>(200)
 .Produces(401)
 .Produces(403);
-
 
 // GET /users/{id} → Retorna um usuário específico por ID
 userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
@@ -259,7 +251,6 @@ userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, Jw
 .Produces(403)
 .Produces(404);
 
-
 /// GET /users/by-email → Busca usuário pelo e-mail
 userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -301,8 +292,6 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
 .Produces(403)
 .Produces(404);
 
-
-
 /// POST /users → Cria um novo usuário
 userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -334,7 +323,6 @@ userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService
 .Produces(401)
 .Produces(403)
 .Produces(400);
-
 
 /// PUT /users/{id} → Atualiza os dados de um usuário
 userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
@@ -369,7 +357,6 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
-
 // DELETE /users/{id} → Remove um usuário do sistema
 userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -403,13 +390,11 @@ userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService,
 .Produces(403)
 .Produces(404);
 
-
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE CARGOS (ROLES)
 // -----------------------------------------------------------
 
 var roleGroup = app.MapGroup("/roles").WithTags("Cargos");
-
 
 /// GET /roles → Lista todas as roles
 roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
@@ -434,7 +419,6 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 .Produces<IEnumerable<RoleResponse>>(200)
 .Produces(401)
 .Produces(403);
-
 
 // GET /roles/{id} → Busca uma role por ID
 roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
@@ -463,7 +447,6 @@ roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(403)
 .Produces(404);
 
-
 // POST /roles → Cria uma nova role
 roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
@@ -482,7 +465,6 @@ roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService 
 .Produces<RoleResponse>(201)
 .Produces(401)
 .Produces(403);
-
 
 // PUT /roles/{id} → Atualiza uma role existente
 roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
@@ -505,7 +487,6 @@ roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
-
 /// DELETE /roles/{id} → Exclui uma role
 roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
 {
@@ -526,7 +507,6 @@ roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(401)
 .Produces(403)
 .Produces(404);
-
 
 // 🚀 Inicializa o servidor
 app.Run();
