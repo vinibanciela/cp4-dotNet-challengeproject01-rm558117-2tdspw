@@ -1,4 +1,5 @@
 // Imports necessários
+using System;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using MotoSyncAuth.Services;
@@ -45,7 +46,7 @@ builder.Services.AddSwaggerGen(options =>
                     Id = JwtBearerDefaults.AuthenticationScheme
                 }
             },
-            new string[] {}
+            Array.Empty<string>() // evita alocação de array constante
         }
     });
 });
@@ -304,7 +305,6 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
 .Produces(401)
 .Produces(403)
 .Produces(404);
-
 
 
 /// POST /users → Cria um novo usuário
