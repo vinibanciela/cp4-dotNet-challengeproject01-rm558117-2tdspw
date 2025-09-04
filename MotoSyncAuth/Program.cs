@@ -9,6 +9,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 const string UserNotFoundMessage = "Usuário não encontrado.";
+const string RoleAdmin = "Administrador";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -192,7 +193,7 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
     // Obtém todos os usuários do sistema
     var users = userService.GetAllUsers();
 
-    if (user.Role?.Name == "Administrador")
+    if (user.Role?.Name == RoleAdmin)
     {
         // Se for Administrador, retorna todos os usuários
         var response = users.Select(u => new UserResponse(u.Id, u.Username, u.Email, u.Role?.Name ?? ""));
@@ -231,7 +232,7 @@ userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, Jw
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
-    if (user.Role?.Name == "Administrador")
+    if (user.Role?.Name == RoleAdmin)
     {
         // Se for Administrador, pode visualizar qualquer usuário
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
@@ -240,7 +241,7 @@ userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, Jw
     else if (user.Role?.Name == "Gerente")
     {
         // Gerente pode visualizar Gerentes e Funcionários, mas não Administradores
-        if (targetUser.Role?.Name == "Administrador")
+        if (targetUser.Role?.Name == RoleAdmin)
             return Results.Forbid();
 
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
@@ -273,7 +274,7 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
-    if (user.Role?.Name == "Administrador")
+    if (user.Role?.Name == RoleAdmin)
     {
         // Se for Administrador, pode visualizar qualquer usuário
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
@@ -282,7 +283,7 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
     else if (user.Role?.Name == "Gerente")
     {
         // Gerente pode visualizar Gerentes e Funcionários, mas não Administradores
-        if (targetUser.Role?.Name == "Administrador")
+        if (targetUser.Role?.Name == RoleAdmin)
             return Results.Forbid();
 
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
@@ -370,7 +371,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
 .Produces(404);
 
 
-// DELETE /users/{id} → Remove um usuário do sistema
+/// DELETE /users/{id} → Remove um usuário do sistema
 userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
     // Extrai o usuário autenticado
@@ -418,12 +419,12 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
     if (user == null)
         return Results.Unauthorized();
 
-    if (user.Role?.Name != "Administrador")
+    if (user.Role?.Name != RoleAdmin)
         return Results.Forbid();
 
     var roles = new List<RoleResponse>
     {
-        new(1, "Administrador"),
+        new(1, RoleAdmin),
         new(2, "Gerente"),
         new(3, "Funcionario")
     };
@@ -436,19 +437,19 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 .Produces(403);
 
 
-// GET /roles/{id} → Busca uma role por ID
+/// GET /roles/{id} → Busca uma role por ID
 roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    if (user.Role?.Name != "Administrador")
+    if (user.Role?.Name != RoleAdmin)
         return Results.Forbid();
 
     var role = id switch
     {
-        1 => new RoleResponse(1, "Administrador"),
+        1 => new RoleResponse(1, RoleAdmin),
         2 => new RoleResponse(2, "Gerente"),
         3 => new RoleResponse(3, "Funcionario"),
         _ => null
@@ -464,14 +465,14 @@ roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(404);
 
 
-// POST /roles → Cria uma nova role
+/// POST /roles → Cria uma nova role
 roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    if (user.Role?.Name != "Administrador")
+    if (user.Role?.Name != RoleAdmin)
         return Results.Forbid();
 
     // Simulação: cria uma role com ID fictício
@@ -484,14 +485,14 @@ roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService 
 .Produces(403);
 
 
-// PUT /roles/{id} → Atualiza uma role existente
+/// PUT /roles/{id} → Atualiza uma role existente
 roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    if (user.Role?.Name != "Administrador")
+    if (user.Role?.Name != RoleAdmin)
         return Results.Forbid();
 
     return id is >= 1 and <= 3
@@ -513,7 +514,7 @@ roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
     if (user == null)
         return Results.Unauthorized();
 
-    if (user.Role?.Name != "Administrador")
+    if (user.Role?.Name != RoleAdmin)
         return Results.Forbid();
 
     return id is >= 1 and <= 3
