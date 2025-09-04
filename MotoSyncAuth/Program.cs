@@ -25,7 +25,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Adiciona esquema de segurança JWT
     options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "Insira o token JWT no formato: Bearer {token}",
@@ -46,13 +45,11 @@ builder.Services.AddSwaggerGen(options =>
                     Id = JwtBearerDefaults.AuthenticationScheme
                 }
             },
-            Array.Empty<string>() // evita alocação de array constante
+            Array.Empty<string>() // evita alocação de array zero-length
         }
     });
 });
 
-
-// CORS: libera acesso de outras origens (ex: frontend em outra porta)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -63,23 +60,20 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Rate Limiting: evita flood de chamadas (ex: brute force no login)
 builder.Services.AddRateLimiter(opt =>
 {
     opt.AddFixedWindowLimiter("default", options =>
     {
-        options.Window = TimeSpan.FromSeconds(10);  // janela de tempo
-        options.PermitLimit = 5;                    // máximo 5 requisições
+        options.Window = TimeSpan.FromSeconds(10);
+        options.PermitLimit = 5;
         options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         options.QueueLimit = 2;
     });
 });
 
-// Injeção de dependência dos nossos serviços customizados
-builder.Services.AddSingleton<JwtService>();    // Gera e valida tokens
-builder.Services.AddSingleton<UserService>();   // Simula usuários em memória
+builder.Services.AddSingleton<JwtService>();
+builder.Services.AddSingleton<UserService>();
 
-// Configura Autenticação JWT (com chave secreta)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
@@ -97,7 +91,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Configura Autorização (para controle de acesso)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
@@ -109,10 +102,9 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
-app.UseRateLimiter(); // protege as rotas com limites de requisições
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 // -----------------------------------------------------------
 // ROTAS DE AUTENTICAÇÃO
@@ -120,18 +112,13 @@ app.UseAuthorization();
 
 var authGroup = app.MapGroup("/auth").WithTags("Autenticação");
 
-// POST /auth/login → Realiza login e retorna JWT
 authGroup.MapPost("/login", (LoginRequest request, UserService userService, JwtService jwt) =>
 {
-    //Valida se o usuário existe e se a senha está correta
     var user = userService.ValidateUser(request.Email, request.Password);
     if (user == null)
         return Results.Unauthorized();
 
-    //Gera  token JWT para o usuário autenticado
     var token = jwt.GenerateToken(user);
-    
-    //Retorna o token e o nome do usuário
     return Results.Ok(new AuthResponse(user.Username, token));
 })
 .WithSummary("Login do usuário")
@@ -140,8 +127,6 @@ authGroup.MapPost("/login", (LoginRequest request, UserService userService, JwtS
 .Produces(401)
 .RequireRateLimiting("default");
 
-
-// GET /auth/me → Retorna dados do usuário autenticado via token
 authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
@@ -155,8 +140,6 @@ authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 .Produces<User>(200)
 .Produces(401);
 
-
-// POST /auth/forgot-password → Gera token de redefinição de senha
 authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request, UserService userService) =>
 {
     var result = userService.GeneratePasswordResetToken(request.Email);
@@ -167,7 +150,6 @@ authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request, UserServic
 .Produces<string>(200)
 .Produces(404);
 
-// POST /auth/reset-password → Redefine a senha com token
 authGroup.MapPost("/reset-password", (ResetPasswordRequest request, UserService userService) =>
 {
     var result = userService.ResetPassword(request.Token, request.NewPassword);
@@ -178,41 +160,33 @@ authGroup.MapPost("/reset-password", (ResetPasswordRequest request, UserService 
 .Produces<string>(200)
 .Produces(400);
 
-
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE USUÁRIOS
 // -----------------------------------------------------------
 
 var userGroup = app.MapGroup("/users").WithTags("Usuários");
 
-
-// GET /users → Lista todos os usuários
 userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado a partir do token JWT
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Obtém todos os usuários do sistema
     var users = userService.GetAllUsers();
 
     if (user.Role?.Name == RoleAdmin)
     {
-        // Se for Administrador, retorna todos os usuários
         var response = users.Select(u => new UserResponse(u.Id, u.Username, u.Email, u.Role?.Name ?? ""));
         return Results.Ok(response);
     }
     else if (user.Role?.Name == RoleManager)
     {
-        // Se for Gerente, retorna apenas Gerentes e Funcionários
         users = users.Where(u => u.Role?.Name == RoleManager || u.Role?.Name == RoleEmployee);
         var response = users.Select(u => new UserResponse(u.Id, u.Username, u.Email, u.Role?.Name ?? ""));
         return Results.Ok(response);
     }
     else
     {
-        // Funcionário Administrativo não tem permissão para listar usuários
         return Results.Forbid();
     }
 })
@@ -222,29 +196,23 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
 .Produces(401)
 .Produces(403);
 
-
-// GET /users/{id} → Retorna um usuário específico por ID
 userGroup.MapGet(RouteId, (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado a partir do token JWT
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Busca o usuário alvo pelo ID
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
     if (user.Role?.Name == RoleAdmin)
     {
-        // Se for Administrador, pode visualizar qualquer usuário
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
         return Results.Ok(response);
     }
     else if (user.Role?.Name == RoleManager)
     {
-        // Gerente pode visualizar Gerentes e Funcionários, mas não Administradores
         if (targetUser.Role?.Name == RoleAdmin)
             return Results.Forbid();
 
@@ -253,7 +221,6 @@ userGroup.MapGet(RouteId, (int id, HttpContext http, UserService userService, Jw
     }
     else
     {
-        // Funcionário não pode visualizar ninguém
         return Results.Forbid();
     }
 })
@@ -264,29 +231,23 @@ userGroup.MapGet(RouteId, (int id, HttpContext http, UserService userService, Jw
 .Produces(403)
 .Produces(404);
 
-
-/// GET /users/by-email → Busca usuário pelo e-mail
 userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado a partir do token JWT
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Busca o usuário alvo pelo e-mail informado
     var targetUser = userService.GetUserByEmail(email);
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
     if (user.Role?.Name == RoleAdmin)
     {
-        // Se for Administrador, pode visualizar qualquer usuário
         var response = new UserResponse(targetUser.Id, targetUser.Username, targetUser.Email, targetUser.Role?.Name ?? "");
         return Results.Ok(response);
     }
     else if (user.Role?.Name == RoleManager)
     {
-        // Gerente pode visualizar Gerentes e Funcionários, mas não Administradores
         if (targetUser.Role?.Name == RoleAdmin)
             return Results.Forbid();
 
@@ -295,7 +256,6 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
     }
     else
     {
-        // Funcionário não pode visualizar ninguém
         return Results.Forbid();
     }
 })
@@ -306,29 +266,22 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
 .Produces(403)
 .Produces(404);
 
-
-/// POST /users → Cria um novo usuário
 userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Funcionário não pode criar ninguém
     if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
-    // Gerente só pode criar Funcionários
     if (user.Role?.Name == RoleManager && request.RoleId != 3)
         return Results.Forbid();
 
-    // Cria o novo usuário
     var newUser = userService.CreateUser(request);
     if (newUser == null)
         return Results.BadRequest("E-mail já cadastrado.");
 
-    // Mapeia para DTO
     var response = new UserResponse(newUser.Id, newUser.Username, newUser.Email, newUser.Role?.Name ?? "");
     return Results.Created($"/users/{newUser.Id}", response);
 })
@@ -339,29 +292,22 @@ userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService
 .Produces(403)
 .Produces(400);
 
-
-/// PUT /users/{id} → Atualiza os dados de um usuário
 userGroup.MapPut(RouteId, (int id, UpdateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Funcionário não pode atualizar ninguém
     if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
-    // Busca o usuário alvo
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
-    // Gerente só pode editar Funcionários
     if (user.Role?.Name == RoleManager && targetUser.Role?.Name != RoleEmployee)
         return Results.Forbid();
 
-    // Executa a atualização
     var success = userService.UpdateUser(id, request);
     return success ? Results.Ok("Usuário atualizado.") : Results.BadRequest("Falha ao atualizar.");
 })
@@ -373,29 +319,22 @@ userGroup.MapPut(RouteId, (int id, UpdateUserRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
-
-/// DELETE /users/{id} → Remove um usuário do sistema
 userGroup.MapDelete(RouteId, (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
-    // Extrai o usuário autenticado
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
         return Results.Unauthorized();
 
-    // Funcionário não pode excluir ninguém
     if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
-    // Busca o usuário alvo
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
         return Results.NotFound(UserNotFoundMessage);
 
-    // Se for Gerente, só pode excluir Funcionários
     if (user.Role?.Name == RoleManager && targetUser.Role?.Name != RoleEmployee)
         return Results.Forbid();
 
-    // Executa a exclusão
     var success = userService.DeleteUser(id);
     return success ? Results.Ok("Usuário excluído.") : Results.BadRequest("Erro ao excluir usuário.");
 })
@@ -407,15 +346,12 @@ userGroup.MapDelete(RouteId, (int id, HttpContext http, UserService userService,
 .Produces(403)
 .Produces(404);
 
-
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE CARGOS (ROLES)
 // -----------------------------------------------------------
 
 var roleGroup = app.MapGroup("/roles").WithTags("Cargos");
 
-
-/// GET /roles → Lista todas as roles
 roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
@@ -439,8 +375,6 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 .Produces(401)
 .Produces(403);
 
-
-/// GET /roles/{id} → Busca uma role por ID
 roleGroup.MapGet(RouteId, (int id, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
@@ -467,8 +401,6 @@ roleGroup.MapGet(RouteId, (int id, HttpContext http, JwtService jwt) =>
 .Produces(403)
 .Produces(404);
 
-
-/// PUT /roles/{id} → Atualiza uma role existente
 roleGroup.MapPut(RouteId, (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
@@ -489,8 +421,6 @@ roleGroup.MapPut(RouteId, (int id, UpdateRoleRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
-
-/// DELETE /roles/{id} → Exclui uma role
 roleGroup.MapDelete(RouteId, (int id, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
@@ -511,6 +441,4 @@ roleGroup.MapDelete(RouteId, (int id, HttpContext http, JwtService jwt) =>
 .Produces(403)
 .Produces(404);
 
-
-// 🚀 Inicializa o servidor
 app.Run();
