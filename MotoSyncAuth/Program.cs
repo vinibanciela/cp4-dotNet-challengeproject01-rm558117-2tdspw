@@ -50,6 +50,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -60,6 +61,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate Limiting
 builder.Services.AddRateLimiter(opt =>
 {
     opt.AddFixedWindowLimiter("default", options =>
@@ -71,9 +73,18 @@ builder.Services.AddRateLimiter(opt =>
     });
 });
 
+// Serviços
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddSingleton<UserService>();
 
+// ====== NOVO: valida o segredo JWT para evitar null em Encoding.GetBytes ======
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException("JwtSettings:Secret não está configurado.");
+}
+
+// Autenticação/Autorização
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
@@ -85,9 +96,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"])
-            )
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
     });
 
