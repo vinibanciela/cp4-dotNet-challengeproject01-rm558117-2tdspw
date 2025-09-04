@@ -8,6 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
+const string UserNotFoundMessage = "Usuário não encontrado.";
+
 var builder = WebApplication.CreateBuilder(args);
 
 // -----------------------------------------------------------
@@ -106,6 +108,7 @@ app.UseRateLimiter(); // protege as rotas com limites de requisições
 app.UseAuthentication();
 app.UseAuthorization();
 
+
 // -----------------------------------------------------------
 // ROTAS DE AUTENTICAÇÃO
 // -----------------------------------------------------------
@@ -132,6 +135,7 @@ authGroup.MapPost("/login", (LoginRequest request, UserService userService, JwtS
 .Produces(401)
 .RequireRateLimiting("default");
 
+
 // GET /auth/me → Retorna dados do usuário autenticado via token
 authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 {
@@ -146,11 +150,12 @@ authGroup.MapGet("/me", (HttpContext http, JwtService jwt) =>
 .Produces<User>(200)
 .Produces(401);
 
+
 // POST /auth/forgot-password → Gera token de redefinição de senha
 authGroup.MapPost("/forgot-password", (ForgotPasswordRequest request, UserService userService) =>
 {
     var result = userService.GeneratePasswordResetToken(request.Email);
-    return result ? Results.Ok("Token de redefinição gerado com sucesso.") : Results.NotFound("Usuário não encontrado.");
+    return result ? Results.Ok("Token de redefinição gerado com sucesso.") : Results.NotFound(UserNotFoundMessage);
 })
 .WithSummary("Solicitação de redefinição de senha")
 .WithDescription("Gera um token de redefinição de senha para o e-mail informado.")
@@ -168,11 +173,13 @@ authGroup.MapPost("/reset-password", (ResetPasswordRequest request, UserService 
 .Produces<string>(200)
 .Produces(400);
 
+
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE USUÁRIOS
 // -----------------------------------------------------------
 
 var userGroup = app.MapGroup("/users").WithTags("Usuários");
+
 
 // GET /users → Lista todos os usuários
 userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt) =>
@@ -210,6 +217,7 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
 .Produces(401)
 .Produces(403);
 
+
 // GET /users/{id} → Retorna um usuário específico por ID
 userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -221,7 +229,7 @@ userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, Jw
     // Busca o usuário alvo pelo ID
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
-        return Results.NotFound("Usuário não encontrado.");
+        return Results.NotFound(UserNotFoundMessage);
 
     if (user.Role?.Name == "Administrador")
     {
@@ -251,6 +259,7 @@ userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, Jw
 .Produces(403)
 .Produces(404);
 
+
 /// GET /users/by-email → Busca usuário pelo e-mail
 userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -262,7 +271,7 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
     // Busca o usuário alvo pelo e-mail informado
     var targetUser = userService.GetUserByEmail(email);
     if (targetUser == null)
-        return Results.NotFound("Usuário não encontrado.");
+        return Results.NotFound(UserNotFoundMessage);
 
     if (user.Role?.Name == "Administrador")
     {
@@ -291,6 +300,8 @@ userGroup.MapGet("/by-email", (string email, HttpContext http, UserService userS
 .Produces(401)
 .Produces(403)
 .Produces(404);
+
+
 
 /// POST /users → Cria um novo usuário
 userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
@@ -324,6 +335,7 @@ userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService
 .Produces(403)
 .Produces(400);
 
+
 /// PUT /users/{id} → Atualiza os dados de um usuário
 userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -339,7 +351,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
     // Busca o usuário alvo
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
-        return Results.NotFound("Usuário não encontrado.");
+        return Results.NotFound(UserNotFoundMessage);
 
     // Gerente só pode editar Funcionários
     if (user.Role?.Name == "Gerente" && targetUser.Role?.Name != "Funcionario")
@@ -357,6 +369,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
+
 // DELETE /users/{id} → Remove um usuário do sistema
 userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
@@ -372,7 +385,7 @@ userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService,
     // Busca o usuário alvo
     var targetUser = userService.GetUserById(id);
     if (targetUser == null)
-        return Results.NotFound("Usuário não encontrado.");
+        return Results.NotFound(UserNotFoundMessage);
 
     // Se for Gerente, só pode excluir Funcionários
     if (user.Role?.Name == "Gerente" && targetUser.Role?.Name != "Funcionario")
@@ -390,11 +403,13 @@ userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService,
 .Produces(403)
 .Produces(404);
 
+
 // -----------------------------------------------------------
 // ROTAS DE GESTÃO DE CARGOS (ROLES)
 // -----------------------------------------------------------
 
 var roleGroup = app.MapGroup("/roles").WithTags("Cargos");
+
 
 /// GET /roles → Lista todas as roles
 roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
@@ -419,6 +434,7 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 .Produces<IEnumerable<RoleResponse>>(200)
 .Produces(401)
 .Produces(403);
+
 
 // GET /roles/{id} → Busca uma role por ID
 roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
@@ -447,6 +463,7 @@ roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(403)
 .Produces(404);
 
+
 // POST /roles → Cria uma nova role
 roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
@@ -465,6 +482,7 @@ roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService 
 .Produces<RoleResponse>(201)
 .Produces(401)
 .Produces(403);
+
 
 // PUT /roles/{id} → Atualiza uma role existente
 roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
@@ -487,6 +505,7 @@ roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, 
 .Produces(403)
 .Produces(404);
 
+
 /// DELETE /roles/{id} → Exclui uma role
 roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
 {
@@ -507,6 +526,7 @@ roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(401)
 .Produces(403)
 .Produces(404);
+
 
 // 🚀 Inicializa o servidor
 app.Run();
