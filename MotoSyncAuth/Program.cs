@@ -77,7 +77,7 @@ builder.Services.AddRateLimiter(opt =>
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddSingleton<UserService>();
 
-// ====== NOVO: valida o segredo JWT para evitar null em Encoding.GetBytes ======
+// Valida o segredo JWT para evitar null em Encoding.GetBytes
 var jwtSecret = builder.Configuration["JwtSettings:Secret"];
 if (string.IsNullOrWhiteSpace(jwtSecret))
 {
@@ -450,4 +450,5 @@ roleGroup.MapDelete(RouteId, (int id, HttpContext http, JwtService jwt) =>
 .Produces(403)
 .Produces(404);
 
-app.Run();
+// ====== alteração para S6966 ======
+await app.RunAsync();
