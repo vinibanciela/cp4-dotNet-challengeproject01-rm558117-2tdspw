@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 const string UserNotFoundMessage = "Usuário não encontrado.";
 const string RoleAdmin = "Administrador";
 const string RoleManager = "Gerente";
+const string RoleEmployee = "Funcionario";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -203,7 +204,7 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
     else if (user.Role?.Name == RoleManager)
     {
         // Se for Gerente, retorna apenas Gerentes e Funcionários
-        users = users.Where(u => u.Role?.Name == RoleManager || u.Role?.Name == "Funcionario");
+        users = users.Where(u => u.Role?.Name == RoleManager || u.Role?.Name == RoleEmployee);
         var response = users.Select(u => new UserResponse(u.Id, u.Username, u.Email, u.Role?.Name ?? ""));
         return Results.Ok(response);
     }
@@ -314,7 +315,7 @@ userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService
         return Results.Unauthorized();
 
     // Funcionário não pode criar ninguém
-    if (user.Role?.Name == "Funcionario")
+    if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
     // Gerente só pode criar Funcionários
@@ -347,7 +348,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
         return Results.Unauthorized();
 
     // Funcionário não pode atualizar ninguém
-    if (user.Role?.Name == "Funcionario")
+    if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
     // Busca o usuário alvo
@@ -356,7 +357,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
         return Results.NotFound(UserNotFoundMessage);
 
     // Gerente só pode editar Funcionários
-    if (user.Role?.Name == RoleManager && targetUser.Role?.Name != "Funcionario")
+    if (user.Role?.Name == RoleManager && targetUser.Role?.Name != RoleEmployee)
         return Results.Forbid();
 
     // Executa a atualização
@@ -381,7 +382,7 @@ userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService,
         return Results.Unauthorized();
 
     // Funcionário não pode excluir ninguém
-    if (user.Role?.Name == "Funcionario")
+    if (user.Role?.Name == RoleEmployee)
         return Results.Forbid();
 
     // Busca o usuário alvo
@@ -390,7 +391,7 @@ userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService,
         return Results.NotFound(UserNotFoundMessage);
 
     // Se for Gerente, só pode excluir Funcionários
-    if (user.Role?.Name == RoleManager && targetUser.Role?.Name != "Funcionario")
+    if (user.Role?.Name == RoleManager && targetUser.Role?.Name != RoleEmployee)
         return Results.Forbid();
 
     // Executa a exclusão
@@ -427,7 +428,7 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
     {
         new(1, RoleAdmin),
         new(2, RoleManager),
-        new(3, "Funcionario")
+        new(3, RoleEmployee)
     };
     return Results.Ok(roles);
 })
@@ -452,7 +453,7 @@ roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
     {
         1 => new RoleResponse(1, RoleAdmin),
         2 => new RoleResponse(2, RoleManager),
-        3 => new RoleResponse(3, "Funcionario"),
+        3 => new RoleResponse(3, RoleEmployee),
         _ => null
     };
 
