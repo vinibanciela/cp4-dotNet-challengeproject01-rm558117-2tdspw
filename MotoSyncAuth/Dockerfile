@@ -11,11 +11,11 @@ COPY ["MotoSyncAuth/MotoSyncAuth.csproj", "MotoSyncAuth/"]
 RUN dotnet restore "MotoSyncAuth/MotoSyncAuth.csproj"
 COPY . .
 WORKDIR "/src/MotoSyncAuth"
-RUN dotnet build "MotoSyncAuth.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "MotoSyncAuth.csproj" -c "$BUILD_CONFIGURATION" -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "MotoSyncAuth.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "MotoSyncAuth.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
