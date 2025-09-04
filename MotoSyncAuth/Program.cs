@@ -12,6 +12,7 @@ const string UserNotFoundMessage = "Usuário não encontrado.";
 const string RoleAdmin = "Administrador";
 const string RoleManager = "Gerente";
 const string RoleEmployee = "Funcionario";
+const string RouteId = "/{id}";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -222,7 +223,7 @@ userGroup.MapGet("/", (HttpContext http, UserService userService, JwtService jwt
 
 
 // GET /users/{id} → Retorna um usuário específico por ID
-userGroup.MapGet("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
+userGroup.MapGet(RouteId, (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
     // Extrai o usuário autenticado a partir do token JWT
     var user = jwt.ExtractUserFromRequest(http);
@@ -340,7 +341,7 @@ userGroup.MapPost("/", (CreateUserRequest request, HttpContext http, UserService
 
 
 /// PUT /users/{id} → Atualiza os dados de um usuário
-userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
+userGroup.MapPut(RouteId, (int id, UpdateUserRequest request, HttpContext http, UserService userService, JwtService jwt) =>
 {
     // Extrai o usuário autenticado
     var user = jwt.ExtractUserFromRequest(http);
@@ -374,7 +375,7 @@ userGroup.MapPut("/{id}", (int id, UpdateUserRequest request, HttpContext http, 
 
 
 /// DELETE /users/{id} → Remove um usuário do sistema
-userGroup.MapDelete("/{id}", (int id, HttpContext http, UserService userService, JwtService jwt) =>
+userGroup.MapDelete(RouteId, (int id, HttpContext http, UserService userService, JwtService jwt) =>
 {
     // Extrai o usuário autenticado
     var user = jwt.ExtractUserFromRequest(http);
@@ -440,7 +441,7 @@ roleGroup.MapGet("/", (HttpContext http, JwtService jwt) =>
 
 
 /// GET /roles/{id} → Busca uma role por ID
-roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
+roleGroup.MapGet(RouteId, (int id, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
@@ -467,28 +468,8 @@ roleGroup.MapGet("/{id}", (int id, HttpContext http, JwtService jwt) =>
 .Produces(404);
 
 
-/// POST /roles → Cria uma nova role
-roleGroup.MapPost("/", (CreateRoleRequest request, HttpContext http, JwtService jwt) =>
-{
-    var user = jwt.ExtractUserFromRequest(http);
-    if (user == null)
-        return Results.Unauthorized();
-
-    if (user.Role?.Name != RoleAdmin)
-        return Results.Forbid();
-
-    // Simulação: cria uma role com ID fictício
-    return Results.Created("/roles/999", new RoleResponse(999, request.Name));
-})
-.WithSummary("Criar role")
-.WithDescription("Apenas Administrador pode criar novos cargos.")
-.Produces<RoleResponse>(201)
-.Produces(401)
-.Produces(403);
-
-
 /// PUT /roles/{id} → Atualiza uma role existente
-roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
+roleGroup.MapPut(RouteId, (int id, UpdateRoleRequest request, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
@@ -510,7 +491,7 @@ roleGroup.MapPut("/{id}", (int id, UpdateRoleRequest request, HttpContext http, 
 
 
 /// DELETE /roles/{id} → Exclui uma role
-roleGroup.MapDelete("/{id}", (int id, HttpContext http, JwtService jwt) =>
+roleGroup.MapDelete(RouteId, (int id, HttpContext http, JwtService jwt) =>
 {
     var user = jwt.ExtractUserFromRequest(http);
     if (user == null)
