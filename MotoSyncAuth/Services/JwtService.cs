@@ -15,8 +15,8 @@ public class JwtService
     {
         var secret = config["JwtSettings:Secret"];
         if (string.IsNullOrEmpty(secret))
-            throw new Exception("JWT Secret não configurado.");
-        
+            throw new InvalidOperationException("JwtSettings:Secret não está configurado.");
+
         // Converte a chave em bytes para criar o token
         _key = Encoding.ASCII.GetBytes(secret);
     }
@@ -73,15 +73,15 @@ public class JwtService
             // Define os parâmetros de validação do token
             var validationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = false, // Não valida o emissor (Issuer)
-                ValidateAudience = false, // Não valida o público (Audience)
-                ValidateLifetime = true, // Valida a expiração do token
-                ValidateIssuerSigningKey = true, // Valida a assinatura do token
+                ValidateIssuer = false,                // Não valida o emissor (Issuer)
+                ValidateAudience = false,              // Não valida o público (Audience)
+                ValidateLifetime = true,               // Valida a expiração do token
+                ValidateIssuerSigningKey = true,       // Valida a assinatura do token
                 IssuerSigningKey = new SymmetricSecurityKey(_key) // Chave secreta
             };
 
             // Valida o token e extrai as claims (privilégios do usuário)
-            var principal = handler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+            var principal = handler.ValidateToken(token, validationParameters, out _);
 
             // Extrai os dados (claims) do token válido
             var username = principal.FindFirst(ClaimTypes.Name)?.Value ?? "";
